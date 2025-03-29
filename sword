@@ -82,7 +82,7 @@ end
 --[[ACCESSORIES]]  
 local Accessories = {
     {
-        AssetID = 12187348,  --ex FAKE sword accessory
+        AssetID = 11453385,  --ex FAKE sword accessory
         AttachTo = "Right Arm",
         Position = Vector3.new(0, -1, -2.5),
         Rotation = Vector3.new(0, 90, -90)
