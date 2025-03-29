@@ -1,11 +1,10 @@
---[[ Accessory and Gear Converter Function ]]  
-
+-- Accessory and gear converter function
 local AccessorySettings = {
-    RemoveOriginalAccessories = true -- Set to true to remove existing accessories
+    RemoveOriginalAccessories = true -- Set to true to remove accessories
 }
 
 local function DisableCollisions(object)
-    if object:IsA("BasePart") then
+    if object and object:IsA("BasePart") then
         object.CanCollide = false
         object.CanTouch = false
         object.CanQuery = false
@@ -13,78 +12,75 @@ local function DisableCollisions(object)
 end
 
 local function AttachAccessories(accessoryTable)
-    local player = game.Players.LocalPlayer
+    local player = game:GetService("Players").LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
-    
+
     if AccessorySettings.RemoveOriginalAccessories then
-        for _, obj in pairs(character:GetChildren()) do
+        for _, obj in ipairs(character:GetChildren()) do
             if obj:IsA("Accessory") then
                 obj:Destroy()
             end
         end
     end
-    
-    for _, accessoryData in pairs(accessoryTable) do
+
+    for _, accessoryData in ipairs(accessoryTable) do
         local success, item = pcall(function()
             return game:GetObjects("rbxassetid://" .. tostring(accessoryData.AssetID))[1]
         end)
+        
+        if success and item then
+            if item:IsA("Tool") then
+                local newAccessory = Instance.new("Accessory")
+                local handle = item:FindFirstChildWhichIsA("BasePart")
 
-        if not success or not item then
-            warn("Failed to load item with ID:", accessoryData.AssetID)
-            continue
-        end
+                if handle then
+                    handle.Parent = newAccessory
+                    newAccessory.Parent = character
+                    newAccessory.Name = "ConvertedAccessory"
+                    DisableCollisions(handle)
 
-        -- Convert tool to accessory if necessary
-        if item:IsA("Tool") then
-            local newAccessory = Instance.new("Accessory")
-            local handle = item:FindFirstChildWhichIsA("BasePart")
-
-            if handle then
-                handle.Parent = newAccessory
-                newAccessory.Parent = character
-                newAccessory.Name = "ConvertedAccessory"
-
-                DisableCollisions(handle)
+                    local targetPart = character:FindFirstChild(accessoryData.AttachTo)
+                    if targetPart then
+                        local weld = Instance.new("Weld")
+                        weld.Part0 = targetPart
+                        weld.Part1 = handle
+                        weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
+                            math.rad(accessoryData.Rotation.X),
+                            math.rad(accessoryData.Rotation.Y),
+                            math.rad(accessoryData.Rotation.Z)
+                        )
+                        weld.Parent = targetPart
+                    end
+                end
+            else
+                item.Parent = character
                 local targetPart = character:FindFirstChild(accessoryData.AttachTo)
                 if targetPart then
-                    local weld = Instance.new("Weld")
-                    weld.Part0 = targetPart
-                    weld.Part1 = handle
-                    weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
-                        math.rad(accessoryData.Rotation.X),
-                        math.rad(accessoryData.Rotation.Y),
-                        math.rad(accessoryData.Rotation.Z)
-                    )
-                    weld.Parent = targetPart
+                    local attachPart = item:FindFirstChildWhichIsA("BasePart")
+                    if attachPart then
+                        DisableCollisions(attachPart)
+                        local weld = Instance.new("Weld")
+                        weld.Part0 = targetPart
+                        weld.Part1 = attachPart
+                        weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
+                            math.rad(accessoryData.Rotation.X),
+                            math.rad(accessoryData.Rotation.Y),
+                            math.rad(accessoryData.Rotation.Z)
+                        )
+                        weld.Parent = targetPart
+                    end
                 end
             end
         else
-            item.Parent = character
-            local targetPart = character:FindFirstChild(accessoryData.AttachTo)
-            if targetPart then
-                local attachPart = item:FindFirstChildWhichIsA("BasePart")
-                if attachPart then
-                    DisableCollisions(attachPart)
-                    
-                    local weld = Instance.new("Weld")
-                    weld.Part0 = targetPart
-                    weld.Part1 = attachPart
-                    weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
-                        math.rad(accessoryData.Rotation.X),
-                        math.rad(accessoryData.Rotation.Y),
-                        math.rad(accessoryData.Rotation.Z)
-                    )
-                    weld.Parent = targetPart
-                end
-            end
+            warn("Failed to load item with ID: " .. tostring(accessoryData.AssetID))
         end
     end
 end
 
--- Accessories List  
+-- Accessory Data
 local Accessories = {
     {
-        AssetID = 11453385,  -- Example Sword accessory
+        AssetID = 11453385,  -- Example accessory ID
         AttachTo = "Right Arm",
         Position = Vector3.new(0, -1, -2.5),
         Rotation = Vector3.new(0, 90, -90)
@@ -93,58 +89,57 @@ local Accessories = {
 
 AttachAccessories(Accessories)
 
---[[ Player Customization System ]]  
+-- Player Customization System
 local PlayerCustomization = {
     EnableSkinToneChange = false,
     SkinTones = {
         Head = "Pastel brown",
         Torso = "Black",
-        Left Arm = "Pastel brown",
-        Right Arm = "Pastel brown",
-        Left Leg = "Black",
-        Right Leg = "Black"
+        LeftArm = "Pastel brown",
+        RightArm = "Pastel brown",
+        LeftLeg = "Black",
+        RightLeg = "Black"
     },
     RemoveMeshes = false,
     HeadSize = Vector3.new(1.25, 1.25, 1.25),
     Clothes = {
-        Shirt = nil, 
+        Shirt = nil,
         Pants = nil
     }
 }
 
 local function ApplySkinTone()
     if not PlayerCustomization.EnableSkinToneChange then return end
-    
-    local player = game.Players.LocalPlayer
+    local player = game:GetService("Players").LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
-
+    
     for partName, skinColor in pairs(PlayerCustomization.SkinTones) do
         local bodyPart = character:FindFirstChild(partName)
-        if bodyPart and skinColor then
+        if bodyPart then
             bodyPart.BrickColor = BrickColor.new(skinColor)
         end
     end
 end
 
 local function ResetCharacterMesh()
-    local player = game.Players.LocalPlayer
+    local player = game:GetService("Players").LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
 
     if PlayerCustomization.RemoveMeshes then
-        for _, obj in pairs(character:GetChildren()) do
+        for _, obj in ipairs(character:GetChildren()) do
             if obj:IsA("CharacterMesh") then
                 obj:Destroy()
             end
         end
-
+        
         local head = character:FindFirstChild("Head")
         if head then
-            for _, obj in pairs(head:GetChildren()) do
+            for _, obj in ipairs(head:GetChildren()) do
                 if obj:IsA("SpecialMesh") then
                     obj:Destroy()
                 end
             end
-
+            
             local headMesh = Instance.new("SpecialMesh")
             headMesh.MeshType = Enum.MeshType.Head
             headMesh.Scale = PlayerCustomization.HeadSize
@@ -154,7 +149,7 @@ local function ResetCharacterMesh()
 end
 
 local function ApplyClothes()
-    local player = game.Players.LocalPlayer
+    local player = game:GetService("Players").LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
 
     if PlayerCustomization.Clothes.Shirt then
