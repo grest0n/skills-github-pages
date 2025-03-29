@@ -1,7 +1,6 @@
---[[Accessory and gear converte func]]  
-
+--[[ Improved Accessory and Gear Converter Function ]]  
 local AccessorySettings = {
-    RemoveOriginalAccessories = true --set true to remove accessories
+    RemoveOriginalAccessories = true -- Set to true to remove existing accessories
 }
 
 local function DisableCollisions(object)
@@ -16,6 +15,7 @@ local function AttachAccessories(accessoryTable)
     local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
 
+    -- Remove existing accessories if enabled
     if AccessorySettings.RemoveOriginalAccessories then
         for _, obj in pairs(character:GetChildren()) do
             if obj:IsA("Accessory") then
@@ -24,14 +24,24 @@ local function AttachAccessories(accessoryTable)
         end
     end
 
+    -- Attach new accessories
     for _, accessoryData in pairs(accessoryTable) do
-        local item = game:GetObjects("rbxassetid://" .. tostring(accessoryData.AssetID))[1]
-        if not item then
-            warn("Failed to load item with ID: " .. tostring(accessoryData.AssetID))
-            return
+        local success, item = pcall(function()
+            return game:GetObjects("rbxassetid://" .. tostring(accessoryData.AssetID))[1]
+        end)
+        
+        if not success or not item then
+            warn("Failed to load item with ID:", accessoryData.AssetID)
+            continue
         end
 
-        --convert
+        local targetPart = character:FindFirstChild(accessoryData.AttachTo)
+        if not targetPart then
+            warn("Target part not found for accessory:", accessoryData.AssetID)
+            continue
+        end
+
+        -- Convert tool to accessory if needed
         if item:IsA("Tool") then
             local newAccessory = Instance.new("Accessory")
             local handle = item:FindFirstChildWhichIsA("Part") or item:FindFirstChildWhichIsA("MeshPart")
@@ -40,62 +50,46 @@ local function AttachAccessories(accessoryTable)
                 handle.Parent = newAccessory
                 newAccessory.Parent = character
                 newAccessory.Name = "ConvertedAccessory"
-
                 DisableCollisions(handle)
-
-                local targetPart = character:FindFirstChild(accessoryData.AttachTo)
-                if targetPart then
-                    local weld = Instance.new("Weld")
-                    weld.Part0 = targetPart
-                    weld.Part1 = handle
-                    weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
-                        math.rad(accessoryData.Rotation.X),
-                        math.rad(accessoryData.Rotation.Y),
-                        math.rad(accessoryData.Rotation.Z)
-                    )
-                    weld.Parent = targetPart
-                end
+            else
+                warn("No valid handle found for item:", accessoryData.AssetID)
+                continue
             end
         else
             item.Parent = character
-            local targetPart = character:FindFirstChild(accessoryData.AttachTo)
-            if targetPart then
-                local attachPart = item:FindFirstChildWhichIsA("MeshPart") or item:FindFirstChildWhichIsA("Part")
-                if attachPart then
-                    DisableCollisions(attachPart)
+        end
 
-                    local weld = Instance.new("Weld")
-                    weld.Part0 = targetPart
-                    weld.Part1 = attachPart
-                    weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
-                        math.rad(accessoryData.Rotation.X),
-                        math.rad(accessoryData.Rotation.Y),
-                        math.rad(accessoryData.Rotation.Z)
-                    )
-                    weld.Parent = targetPart
-                end
-            end
+        local attachPart = item:FindFirstChildWhichIsA("MeshPart") or item:FindFirstChildWhichIsA("Part")
+        if attachPart then
+            DisableCollisions(attachPart)
+            local weld = Instance.new("Weld")
+            weld.Part0 = targetPart
+            weld.Part1 = attachPart
+            weld.C0 = CFrame.new(accessoryData.Position) * CFrame.Angles(
+                math.rad(accessoryData.Rotation.X),
+                math.rad(accessoryData.Rotation.Y),
+                math.rad(accessoryData.Rotation.Z)
+            )
+            weld.Parent = targetPart
         end
     end
 end
 
---[[ACCESSORIES]]  
+--[[ Accessories Configuration ]]  
 local Accessories = {
     {
-        AssetID = 11453385,  --ex FAKE sword accessory
+        AssetID = 11453385,  -- Example: FAKE sword accessory
         AttachTo = "Right Arm",
-        Position = Vector3.new(0, -1, -2.5),
-        Rotation = Vector3.new(0, 90, -90)
+        Position = Vector3.new(0, -1.5, -3),
+        Rotation = Vector3.new(0, 90, -80)
     }
 }
 
 AttachAccessories(Accessories)
 
---[[END OF ACCESSORY AND GEAR CONVERTER FUNC]]  
-
---[[doodoo customization system lool]]  
+--[[ Player Customization Settings ]]  
 local PlayerCustomization = {
-    EnableSkinToneChange = false, --set false to disable
+    EnableSkinToneChange = false, -- Set to true to enable
     SkinTones = {
         Head = "Pastel brown",
         Torso = "Black",
@@ -104,45 +98,30 @@ local PlayerCustomization = {
         LeftLeg = "Black",
         RightLeg = "Black"
     },
-    RemoveMeshes = false, --NO char meshes (ex: man arm, leg etc)
+    RemoveMeshes = false, -- Set true to remove character meshes (man arms, legs, etc.)
     HeadSize = Vector3.new(1.25, 1.25, 1.25),
     Clothes = {
-        Shirt = nil, --Set to nil to keep default Shirt
-        Pants = nil, --Set to nil to keep default Pants
-	
-        --[[keep in mind you need a clothing (ShirtTemplate or PantsTemplate) to
-	use this feature, (you can grab them via btroblox [click on clothing, search
-	inside instances and search for respective template] or via roblox studio by
-	inserting the clothing, clicking on the instance and copying the id from the
-	respective template)]]
+        Shirt = nil, -- Use asset ID or set nil to keep default
+        Pants = nil  -- Use asset ID or set nil to keep default
     }
 }
 
---[[SKFUNC]]  
+--[[ Apply Skin Tone ]]  
 local function ApplySkinTone()
     if not PlayerCustomization.EnableSkinToneChange then return end
     
     local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
-
-    local bodyParts = {
-        Head = "Head",
-        Torso = "Torso",
-        LeftArm = "Left Arm",
-        RightArm = "Right Arm",
-        LeftLeg = "Left Leg",
-        RightLeg = "Right Leg"
-    }
-
+    
     for partName, skinColor in pairs(PlayerCustomization.SkinTones) do
-        local bodyPart = character:FindFirstChild(bodyParts[partName])
-        if bodyPart and skinColor then
+        local bodyPart = character:FindFirstChild(partName)
+        if bodyPart then
             bodyPart.BrickColor = BrickColor.new(skinColor)
         end
     end
 end
 
---[[doodoo anti character meshes no touchy pls]]  
+--[[ Remove Character Meshes ]]  
 local function ResetCharacterMesh()
     local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
@@ -161,7 +140,7 @@ local function ResetCharacterMesh()
                     obj:Destroy()
                 end
             end
-
+            
             local headMesh = Instance.new("SpecialMesh")
             headMesh.MeshType = Enum.MeshType.Head
             headMesh.Scale = PlayerCustomization.HeadSize
@@ -170,7 +149,7 @@ local function ResetCharacterMesh()
     end
 end
 
---[[CLOTHES]]  
+--[[ Apply Clothing ]]  
 local function ApplyClothes()
     local player = game.Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
@@ -188,7 +167,7 @@ local function ApplyClothes()
     end
 end
 
---[[APPLY WHEN SPAWN!!!!!!!!]]  
+--[[ Apply Customization on Spawn ]]  
 local function ApplyPlayerCustomization()
     ApplySkinTone()
     ResetCharacterMesh()
@@ -196,4 +175,3 @@ local function ApplyPlayerCustomization()
 end
 
 ApplyPlayerCustomization()
---[[end of doodoo customization system lool]]
